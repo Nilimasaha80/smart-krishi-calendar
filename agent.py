@@ -175,4 +175,5 @@ agent = initialize_agent(
 
 def get_calendar_plan(location, soil, crop):
     query = f"{location}|{soil}|{crop}"
-    return agent.run(f"Use KrishiCalendarTool with this input: {query}")
+    return agent.run(query)
+
