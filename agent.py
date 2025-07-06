@@ -32,3 +32,5 @@ agent = initialize_agent(
 def get_calendar_plan(location, soil, crop):
     query = f"{location}|{soil}|{crop}"
     return agent.run(f"Use the KrishiCalendarTool on this input: {query}")
+
+fix: replaced agent.run with agent.invoke to support LangChain v0.1+
