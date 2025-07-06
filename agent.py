@@ -1,4 +1,5 @@
 import streamlit as st
+import json
 from langchain_community.chat_models import ChatOpenAI
 from langchain.agents import initialize_agent, Tool
 from langchain.agents.agent_types import AgentType
@@ -6,52 +7,53 @@ from langchain.agents.agent_types import AgentType
 # Load API key
 api_key = st.secrets["OPENROUTER_API_KEY"]
 
-# Set up OpenRouter-compatible LLM
+# Load expert calendar data for Etawah
+with open("crop_practices_etawah.json") as f:
+    crop_data = json.load(f)
+
+# Get calendar entry based on crop, soil, and location
+def get_calendar_entry(crop, soil, location):
+    try:
+        entry = crop_data[crop][soil][location]
+        lines = [
+            f"📍 **Location:** {location}",
+            f"🧪 **Soil Type:** {soil}",
+            f"🌾 **Crop:** {crop}",
+            f"\n🗓️ **Expert Farming Calendar**\n"
+        ]
+        for i, week in enumerate(entry["calendar"], 1):
+            lines.append(f"**Week {i}:** {week}")
+        lines.append(f"\n🌤️ **Weather Suitability:** {entry['weather_conditions']}")
+        lines.append("\n✅ *This is an expert-generated plan for Etawah. Always verify with local KVK or extension officer.*")
+        return "\n".join(lines)
+    except KeyError:
+        return f"❌ No data available for {crop} in {location} with {soil} soil. Try a different input."
+
+# Tool wrapper
+
+def wrapped_tool(input_str):
+    parts = input_str.split("|")
+    if len(parts) != 3:
+        return "❌ Format error: Use location|soil|crop"
+    return get_calendar_entry(parts[2].strip(), parts[1].strip(), parts[0].strip())
+
+# Define tool for the agent
+tools = [
+    Tool(
+        name="KrishiCalendarTool",
+        func=wrapped_tool,
+        description="Returns an expert-level farming calendar for the given crop, soil, and district. Format: location|soil|crop"
+    )
+]
+
+# Define LLM for agent
 llm = ChatOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=api_key,
     model="mistralai/mistral-7b-instruct"
 )
 
-# Calendar generation logic
-def basic_tool(location, soil, crop):
-    return f"""
-📍 **Location:** {location}  
-🧪 **Soil Type:** {soil}  
-🌾 **Crop:** {crop}  
-
-🗓️ **Smart Krishi Calendar**
-
-| Week | Activity                                |
-|------|-----------------------------------------|
-| 1    | Land preparation, ploughing             |
-| 2    | Apply organic compost                   |
-| 3    | Seed treatment and sowing of {crop}     |
-| 4    | First irrigation (based on {soil} soil) |
-| 5    | Weed management                         |
-| 6-7  | Fertilizer application                  |
-| 8-10 | Pest & disease monitoring               |
-| 12+  | Harvesting based on local conditions    |
-
-✅ *This plan is AI-assisted. Please consult local KVK or extension workers.*
-"""
-
-# Tool to parse "Etawah|Sandy|Rice" format
-def wrapped_tool(input_str):
-    parts = input_str.split("|")
-    if len(parts) != 3:
-        return "❌ Format error: Use location|soil|crop"
-    return basic_tool(parts[0], parts[1], parts[2])
-
-tools = [
-    Tool(
-        name="KrishiCalendarTool",
-        func=wrapped_tool,
-        description="Generates a farming calendar for a given location, soil type, and crop. Format: location|soil|crop"
-    )
-]
-
-# Use REACT agent (OpenRouter safe)
+# Initialize agent
 agent = initialize_agent(
     tools=tools,
     llm=llm,
@@ -59,7 +61,7 @@ agent = initialize_agent(
     verbose=True
 )
 
-# Function to use in main.py
+# Main callable function for streamlit app
 def get_calendar_plan(location, soil, crop):
     query = f"{location}|{soil}|{crop}"
     return agent.run(f"Use KrishiCalendarTool with this input: {query}")
