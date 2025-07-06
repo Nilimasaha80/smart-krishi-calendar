@@ -147,7 +147,7 @@ def expert_calendar_tool(location, soil, crop):
 ✅ *Expert AI plan. Confirm with KVK/local extension staff.*
 """
 
-# 🧰 Tool wrapper
+# 🪰 Tool wrapper
 def wrapped_tool(input_str):
     parts = input_str.split("|")
     if len(parts) != 3:
@@ -176,4 +176,3 @@ agent = initialize_agent(
 def get_calendar_plan(location, soil, crop):
     query = f"{location}|{soil}|{crop}"
     return agent.run(query)
-
