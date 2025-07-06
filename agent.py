@@ -1,5 +1,5 @@
 import os
-from langchain.llms import OpenAI
+from langchain_community.llms.openai import OpenAI
 from langchain.agents import initialize_agent, Tool
 
 # Load API key from env variable (add in Streamlit Cloud later)
