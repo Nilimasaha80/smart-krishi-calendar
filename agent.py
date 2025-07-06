@@ -54,4 +54,79 @@ crop_data = {
         },
         "Clayey": {
             "Etawah": {
-                "calenda
+                "calendar": [
+                    "Standing water puddling",
+                    "DAP + compost mix",
+                    "Transplanting in mid-June",
+                    "Water depth maintained ~5cm",
+                    "Apply potash at panicle initiation",
+                    "Stem borer & sheath blight monitoring",
+                    "Harvest mid-October"
+                ],
+                "weather_conditions": "Heavy rainfall areas perform better"
+            }
+        }
+    }
+}
+
+# Load OpenRouter API key
+api_key = st.secrets["OPENROUTER_API_KEY"]
+
+# Configure OpenRouter-compatible LLM
+llm = ChatOpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=api_key,
+    model="mistralai/mistral-7b-instruct"
+)
+
+# Generate expert calendar
+def expert_calendar_tool(location, soil, crop):
+    crop = crop.lower()
+    soil = soil.capitalize()
+    location = location.capitalize()
+
+    if crop not in crop_data:
+        return f"❌ Crop '{crop}' not supported yet."
+    if soil not in crop_data[crop]:
+        return f"❌ Soil type '{soil}' not available for crop '{crop}'."
+    if location not in crop_data[crop][soil]:
+        return f"❌ Location '{location}' not supported for crop '{crop}' with soil '{soil}'."
+
+    calendar_info = crop_data[crop][soil][location]
+    calendar = calendar_info["calendar"]
+    weather = calendar_info["weather_conditions"]
+
+    table = "\n".join([f"| Week {i+1} | {activity} |" for i, activity in enumerate(calendar)])
+    return f"""
+📍 **Location:** {location}  
+🧪 **Soil Type:** {soil}  
+🌾 **Crop:** {crop.capitalize()}  
+
+🗓️ **Smart Krishi Calendar**
+
+{table}
+
+🌦️ *Weather Note:* {weather}  
+✅ *Expert AI plan. Confirm with KVK/local extension staff.*
+"""
+
+# Wrapper to handle raw input
+def wrapped_tool(input_str):
+    parts = input_str.split("|")
+    if len(parts) != 3:
+        return "❌ Format error: Use location|soil|crop"
+    return expert_calendar_tool(parts[0], parts[1], parts[2])
+
+# Optional tool definition
+tools = [
+    Tool(
+        name="KrishiCalendarTool",
+        func=wrapped_tool,
+        description="Generates expert crop calendar. Format: location|soil|crop"
+    )
+]
+
+# Exported function used in main.py
+def get_calendar_plan(location, soil, crop):
+    query = f"{location}|{soil}|{crop}"
+    return wrapped_tool(query)
