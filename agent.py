@@ -3,17 +3,17 @@ from langchain_community.chat_models import ChatOpenAI
 from langchain.agents import initialize_agent, Tool
 from langchain.agents.agent_types import AgentType
 
-# Load OpenRouter API key
+# Load OpenRouter API key securely from Streamlit Cloud secrets
 api_key = st.secrets["OPENROUTER_API_KEY"]
 
-# Setup LLM from OpenRouter
+# Set up the LLM via OpenRouter
 llm = ChatOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=api_key,
-    model="mistralai/mistral-7b-instruct"  # works fine with REACT agent
+    model="mistralai/mistral-7b-instruct"  # works well with REACT-style agent
 )
 
-# Tool function
+# Tool function to return farming calendar
 def basic_tool(location, soil, crop):
     return f"""
 📍 **Location:** {location}  
@@ -33,19 +33,19 @@ def basic_tool(location, soil, crop):
 | 8-10 | Pest & disease monitoring               |
 | 12+  | Harvesting (depending on crop maturity) |
 
-💡 *Consult your KVK or agri-extension officer for local support.*
+💡 *Consult your local KVK or agri-extension officer for hyperlocal guidance.*
 """
 
-# Define the tool
+# Tool configuration
 tools = [
     Tool(
         name="KrishiCalendarTool",
-        func=lambda x: basic_tool(*x.split("|")) if len(x.split("|")) == 3 else "❌ Invalid input format. Use: location|soil|crop",
-        description="Use this tool to generate a farming calendar for a specific crop. Input format: location|soil|crop"
+        func=lambda x: basic_tool(*x.split("|")) if len(x.split("|")) == 3 else "❌ Format must be: location|soil|crop",
+        description="Use this tool to generate a farming calendar. Format: location|soil|crop"
     )
 ]
 
-# Agent using REACT-based decision-making (no function calling)
+# Set up the agent using REACT-style reasoning (safe for OpenRouter models)
 agent = initialize_agent(
     tools=tools,
     llm=llm,
@@ -53,7 +53,7 @@ agent = initialize_agent(
     verbose=False
 )
 
-# Function called from main.py
+# Function used in main.py to trigger the tool
 def get_calendar_plan(location, soil, crop):
-    query = f"{location}|{soil}|{crop}"
+    query = f"Use KrishiCalendarTool on this input: {location}|{soil}|{crop}"
     return agent.run(query)
